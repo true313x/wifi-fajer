@@ -1,13 +1,5 @@
 name: Android CI
 
-# Works two ways:
-#  1) repo contains the project ZIP at its root (upload the .zip as-is, no unzipping) -> it is unzipped here
-#  2) repo contains the unzipped project -> it is built directly
-#
-# This project's Gradle wrapper jar (a binary) is intentionally not committed — see README
-# "Build & Verification". This workflow uses gradle/actions/setup-gradle to provision Gradle
-# 8.14.5 directly instead of relying on a wrapper.
-
 on:
   push:
   pull_request:
@@ -44,8 +36,8 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Accept Android SDK licenses
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
 
       - name: Set up Gradle 8.14.5
         uses: gradle/actions/setup-gradle@v4
@@ -96,20 +88,6 @@ jobs:
         with:
           name: fajer-wifi-audit-release-unsigned
           path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/release/*.apk
-
-      - name: Upload lint report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: lint-report
-          path: ${{ env.PROJECT_DIR }}/app/build/reports/lint-results-*.html
-
-      - name: Upload unit test report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: unit-test-report
-          path: ${{ env.PROJECT_DIR }}/app/build/reports/tests/
 
       - name: Publish APK to Releases (direct download, no unzip)
         if: success()
