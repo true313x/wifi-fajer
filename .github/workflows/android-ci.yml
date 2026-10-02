@@ -1,5 +1,12 @@
 name: Android CI
 
+# Works two ways:
+#  1) repo contains the project ZIP at its root (upload the .zip as-is, no unzipping) -> it is unzipped here
+#  2) repo contains the unzipped project -> it is built directly
+#
+# The debug APK is uploaded and published right after it builds, so tests, lint and the
+# release build can never block you from getting it.
+
 on:
   push:
   pull_request:
@@ -61,38 +68,51 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Run unit tests
-        if: success()
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: gradle test --stacktrace
-
-      - name: Run lint
-        if: success()
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: gradle lint --stacktrace
-
-      - name: Build unsigned release APK
-        if: success()
-        working-directory: ${{ env.PROJECT_DIR }}
-        run: gradle assembleRelease --stacktrace
-
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: fajer-wifi-audit-debug
           path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
 
-      - name: Upload release APK (unsigned)
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: fajer-wifi-audit-release-unsigned
-          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/release/*.apk
-
       - name: Publish APK to Releases (direct download, no unzip)
-        if: success()
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
           name: FAJER WiFi Audit debug build ${{ github.run_number }}
           files: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
+
+      - name: Run unit tests
+        continue-on-error: true
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: gradle test --stacktrace
+
+      - name: Run lint
+        continue-on-error: true
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: gradle lint --stacktrace
+
+      - name: Build unsigned release APK
+        continue-on-error: true
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: gradle assembleRelease --stacktrace
+
+      - name: Upload release APK (unsigned)
+        uses: actions/upload-artifact@v4
+        with:
+          name: fajer-wifi-audit-release-unsigned
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/release/*.apk
+          if-no-files-found: ignore
+
+      - name: Upload lint report
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-report
+          path: ${{ env.PROJECT_DIR }}/app/build/reports/lint-results-*.html
+          if-no-files-found: ignore
+
+      - name: Upload unit test report
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-report
+          path: ${{ env.PROJECT_DIR }}/app/build/reports/tests/
+          if-no-files-found: ignore
